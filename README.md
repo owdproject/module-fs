@@ -25,7 +25,7 @@ owd install-module @owdproject/module-fs
 
 You could set this configuration in `/desktop/owd.config.ts`:
 
-```json
+```js
 fs: {
   mounts: {
     '/music/meteora': '/meteora.zip',
