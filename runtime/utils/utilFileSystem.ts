@@ -11,3 +11,7 @@ export function getAppByFilename(filename: string): string | null {
 
   return associations[ext] || null
 }
+
+export function getFilename(path: string): string | null {
+  return path.replace(/^.*[\\/]/, '')
+}
