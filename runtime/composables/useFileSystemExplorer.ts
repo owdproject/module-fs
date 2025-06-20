@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue'
 import { fs } from '@zenfs/core'
 import { getAppByFilename } from '@owdproject/module-fs/runtime/utils/utilFileSystem'
-import { useDesktopManager } from '@owdproject/core/runtime/composables/useDesktopManager'
+import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
 import { useClipboardFs } from '@owdproject/core/runtime/composables/useClipboardFs'
 import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
 import { useDirectoryNavigationFs } from './useFileSystemDirectoryNavigation'
@@ -9,7 +9,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { useI18n } from 'vue-i18n'
 
 export function useFileSystemExplorer(owdWindow) {
-  const desktopManager = useDesktopManager()
+  const defaultAppsStore = useDesktopDefaultAppsStore()
 
   const basePath = ref(owdWindow.meta.path)
   const selectedFiles = ref<string[]>([])
@@ -69,7 +69,7 @@ export function useFileSystemExplorer(owdWindow) {
     const appRequired = getAppByFilename(fileName)
 
     if (appRequired) {
-      const defaultApp = desktopManager.getDefaultApp(appRequired)
+      const defaultApp = defaultAppsStore.getDefaultApp(appRequired)
 
       if (defaultApp) {
         const path = shellEscape(`${basePath.value}/${fileName}`)
