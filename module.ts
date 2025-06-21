@@ -6,6 +6,10 @@ export default defineNuxtModule({
     configKey: 'fs',
   },
   defaults: {
+    mounts: {
+      '/home': 'WebStorage',
+      '/tmp': 'InMemory',
+    },
     fileAssociations: {
       mp4: 'video-player',
       webm: 'video-player',
