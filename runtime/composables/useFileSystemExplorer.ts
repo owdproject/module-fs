@@ -1,14 +1,23 @@
 import { ref, watch } from 'vue'
 import { fs } from '@zenfs/core'
-import { getAppByFilename } from '@owdproject/module-fs/runtime/utils/utilFileSystem'
-import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
-import { useClipboardFs } from '@owdproject/core/runtime/composables/useClipboardFs'
-import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
-import { useDirectoryNavigationFs } from './useFileSystemDirectoryNavigation'
-import { useConfirm } from 'primevue/useconfirm'
-import { useI18n } from 'vue-i18n'
 
-export function useFileSystemExplorer(owdWindow) {
+import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
+import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
+
+import { getAppByFilename } from '@owdproject/module-fs/runtime/utils/utilFileSystem'
+import { useFileSystemClipboard } from '@owdproject/module-fs/runtime/composables/useFileSystemClipboard'
+import { useFileSystemDirectoryNavigation } from '@owdproject/module-fs/runtime/composables/useFileSystemDirectoryNavigation'
+import { useFileSystemKeyboardActions } from '@owdproject/module-fs/runtime/composables/useFileSystemKeyboardActions'
+
+import { useConfirm } from 'primevue/useconfirm'
+
+const TRASH_PATH = '/tmp'
+
+export function useFileSystemExplorer(
+  owdWindow: IWindowController,
+  useFsController,
+  t
+) {
   const defaultAppsStore = useDesktopDefaultAppsStore()
 
   const basePath = ref(owdWindow.meta.path)
@@ -16,14 +25,32 @@ export function useFileSystemExplorer(owdWindow) {
   const layout = ref<string>('')
 
   const fsEntries = ref<string[]>([])
-  const fsClipboard = useClipboardFs()
-  const fsDirectoryNavigation = useDirectoryNavigationFs()
+
+  const fsClipboard = useFileSystemClipboard()
+  const fsKeyboardActions = useFileSystemKeyboardActions(
+    owdWindow,
+    {
+      onDelete: async (toTrash) => {
+        fsExplorer.fsController.deleteSelectedFiles(toTrash)
+      },
+      onCopy: async () => {
+        fsExplorer.copySelectedFiles()
+      },
+      onCut: async () => {
+        fsExplorer.cutSelectedFiles()
+      },
+      onPaste: async (toTrash) => {
+        fsExplorer.fsController.pasteClipboardFiles()
+      }
+    }
+  )
+  const fsDirectoryNavigation = useFileSystemDirectoryNavigation(basePath.value)
 
   const confirm = useConfirm()
 
-  watch(
-    () => basePath.value,
-    () => {
+  // update window meta path when basePath change
+  // due to folderUp or folder navigation
+  watch(() => basePath.value,() => {
       owdWindow.meta.path = basePath.value
     },
   )
@@ -106,144 +133,113 @@ export function useFileSystemExplorer(owdWindow) {
       .map((name) => `${basePath.value}/${name}`)
   }
 
-  function cutFiles() {
+  function cutSelectedFiles() {
     fsClipboard.setClipboard(selectedFiles.value, 'cut')
   }
 
-  function copyFiles() {
+  function copySelectedFiles() {
     fsClipboard.setClipboard(selectedFiles.value, 'copy')
   }
 
-  async function deleteSelectedFiles() {
-    if (!selectedFiles.value.length) return
+  /**
+   * Moves a file or directory from source to target, handling cross-device issues.
+   * For files: falls back to copy + unlink if fs.rename fails due to EXDEV.
+   * For directories: falls back to copy + rm if rename fails.
+   *
+   * Supports both file and directory moves in virtual or simulated environments.
+   *
+   * @param source - original path (file or directory)
+   * @param target - destination path
+   */
+  async function moveFileOrDirectorySafe(source: string, target: string) {
+    try {
+      await fs.promises.rename(source, target)
+    } catch (err) {
+      if (err.code === 'EXDEV') {
+        const stat = await fs.promises.stat(source)
 
-    const { t } = useI18n()
-
-    return new Promise<void>((resolve) => {
-      confirm.require({
-        header: t('dialog.deleteFiles.confirm.title'),
-        message: t('dialog.deleteFiles.confirm.message', { count: selectedFiles.value.length }),
-        acceptProps: {
-          label: t('apps.explorer.action.delete'),
-        },
-        rejectProps: {
-          label: t('apps.explorer.action.cancel'),
-        },
-        accept: async () => {
-          try {
-            for (const fullPath of selectedFiles.value) {
-              const stats = await fs.promises.stat(fullPath)
-
-              if (stats.isFile()) {
-                await fs.promises.unlink(fullPath)
-              } else if (stats.isDirectory()) {
-                await new Promise<void>((innerResolve) => {
-                  confirm.require({
-                    header: t('dialog.deleteFolder.confirm.title'),
-                    message: t('dialog.deleteFolder.confirm.message', { name: fullPath }),
-                    acceptProps: {
-                      label: t('apps.explorer.action.delete'),
-                    },
-                    rejectProps: {
-                      label: t('apps.explorer.action.cancel'),
-                    },
-                    accept: async () => {
-                      await fs.promises.rm(fullPath, {
-                        recursive: true,
-                        force: true,
-                      })
-                      innerResolve()
-                    },
-                    reject: () => {
-                      innerResolve()
-                    },
-                  })
-                })
-              }
-            }
-
-            fsEntries.value = await fs.promises.readdir(basePath.value)
-            selectedFiles.value = []
-          } catch (e) {
-            console.error(e)
-          }
-
-          resolve()
-        },
-        reject: () => {
-          resolve()
-        },
-      })
-    })
-  }
-
-  async function pasteFiles() {
-    const { t } = useI18n()
-
-    const files = fsClipboard.clipboardFiles
-    const type = fsClipboard.clipboardType.value
-
-    if (!files?.length || !type) return
-
-    const operations: Promise<void>[] = []
-
-    for (const filePath of files) {
-      const fileName = filePath.split('/').pop()
-      if (!fileName) continue
-
-      const targetPath = `${basePath.value}/${fileName}`
-
-      const exists = await fs.promises
-        .access(targetPath)
-        .then(() => true)
-        .catch(() => false)
-
-      if (exists) {
-        const shouldOverwrite = await new Promise<boolean>((resolve) => {
-          confirm.require({
-            header: t('dialog.fileOverride.confirm.title'),
-            message: t('dialog.fileOverride.confirm.message', { name: fileName }),
-            acceptProps: {
-              label: t('apps.explorer.action.ok'),
-            },
-            rejectProps: {
-              label: t('apps.explorer.action.cancel'),
-            },
-            accept: () => resolve(true),
-            reject: () => resolve(false),
-          })
-        })
-
-        if (!shouldOverwrite) continue
-      }
-
-      if (type === 'copy') {
-        operations.push(fs.promises.copyFile(filePath, targetPath))
-      } else if (type === 'cut') {
-        operations.push(fs.promises.rename(filePath, targetPath))
+        if (stat.isFile()) {
+          await fs.promises.copyFile(source, target)
+          await fs.promises.unlink(source)
+        } else if (stat.isDirectory()) {
+          // Recursively copy directory, then remove original
+          await fs.promises.cp(source, target, { recursive: true })
+          await fs.promises.rm(source, { recursive: true, force: true })
+        }
+      } else {
+        throw err
       }
     }
+  }
 
+  /**
+   * Moves given files or directories to the virtual Trash folder inside the simulated fs.
+   * Creates the Trash directory if it doesn't exist.
+   *
+   * @param paths - Array of paths to move to trash.
+   */
+  async function movePathsToTrash(paths: string[]) {
     try {
-      await Promise.all(operations)
-      if (type === 'cut') {
-        fsClipboard.clearClipboard()
+      // Create Trash directory if missing
+      const exists = await pathExists(TRASH_PATH)
+
+      if (!exists) {
+        await fs.promises.mkdir(TRASH_PATH, { recursive: true })
       }
-      await refreshDirectory()
     } catch (err) {
-      console.error('Error while pasting', err)
+      console.error('Error creating Trash folder:', err)
+    }
+
+    for (const fullPath of paths) {
+      try {
+        const fileName = fullPath.split('/').pop() || 'unknown'
+
+        // Avoid collisions in Trash: append timestamp or similar
+        const timestamp = Date.now()
+        const trashPath = `${TRASH_PATH}/${timestamp}_${fileName}`
+
+        await moveFileOrDirectorySafe(fullPath, trashPath)
+      } catch (err) {
+        console.error(`Error moving ${fullPath} to trash:`, err)
+      }
+    }
+  }
+
+  async function deletePaths(paths: string[]) {
+    for (const fullPath of paths) {
+      const stats = await fs.promises.stat(fullPath)
+      if (stats.isFile()) {
+        await fs.promises.unlink(fullPath)
+      } else if (stats.isDirectory()) {
+        await fs.promises.rm(fullPath, { recursive: true, force: true })
+      }
+    }
+  }
+
+  async function pasteFile(filePath: string, targetPath: string, type: 'copy' | 'cut') {
+    if (type === 'copy') {
+      await fs.promises.copyFile(filePath, targetPath)
+    } else if (type === 'cut') {
+      await fs.promises.rename(filePath, targetPath)
+    }
+  }
+
+  async function pathExists(path: string): Promise<boolean> {
+    try {
+      await fs.promises.access(path)
+      return true
+    } catch {
+      return false
     }
   }
 
   async function pasteShortcuts() {
     const files = fsClipboard.clipboardFiles
-    if (!files?.length) return
-
-    const { t } = useI18n()
+    if (!files?.value.length) return
 
     const operations: Promise<void>[] = []
 
-    for (const filePath of files) {
+    for (const filePath of files.value) {
       const fileName = filePath.split('/').pop()
       if (!fileName) continue
 
@@ -361,12 +357,16 @@ export function useFileSystemExplorer(owdWindow) {
     layout.value = value
   }
 
-  return {
-    initialize,
-    basePath,
-    selectedFiles,
+  const fsExplorer = {
+    fsController: undefined,
     fsEntries,
     fsClipboard,
+    fsDirectoryNavigation,
+
+    initialize,
+    confirm,
+    basePath,
+    selectedFiles,
     refreshDirectory,
     openDirectory,
     directoryBack,
@@ -376,10 +376,12 @@ export function useFileSystemExplorer(owdWindow) {
     selectFiles,
     selectAllFiles,
     invertSelection,
-    cutFiles,
-    copyFiles,
-    deleteSelectedFiles,
-    pasteFiles,
+    cutSelectedFiles,
+    copySelectedFiles,
+    movePathsToTrash,
+    deletePaths,
+    pathExists,
+    pasteFile,
     pasteShortcuts,
     fileProperties,
     operationUndo,
@@ -389,4 +391,8 @@ export function useFileSystemExplorer(owdWindow) {
     layout,
     setLayout,
   }
+
+  fsExplorer.fsController = useFsController(fsExplorer, t)
+
+  return fsExplorer
 }

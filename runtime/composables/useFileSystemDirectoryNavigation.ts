@@ -1,6 +1,8 @@
-export function useDirectoryNavigationFs() {
-  const history = ref<string[]>([])
-  const currentIndex = ref(-1)
+import { ref } from 'vue'
+
+export function useFileSystemDirectoryNavigation(initialPath: string) {
+  const history = ref<string[]>([initialPath])
+  const currentIndex = ref(0)
 
   function push(path: string) {
     if (currentIndex.value < history.value.length - 1) {
@@ -35,6 +37,7 @@ export function useDirectoryNavigationFs() {
   }
 
   return {
+    history,
     push,
     back,
     forward,
