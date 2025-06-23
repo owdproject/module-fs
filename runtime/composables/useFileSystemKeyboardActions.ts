@@ -13,7 +13,6 @@ export function useFileSystemKeyboardActions(
   const keys = useMagicKeys()
 
   watchEffect(() => {
-    console.log(owdWindow)
     if (owdWindow.state.focused) {
       // delete
       if (keys.delete.value) {

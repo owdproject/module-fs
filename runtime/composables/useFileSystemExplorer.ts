@@ -1,6 +1,7 @@
 import { ref, watch } from 'vue'
 import { fs } from '@zenfs/core'
 
+import { useApplicationManager } from '@owdproject/core/runtime/composables/useApplicationManager'
 import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
 import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
 
@@ -18,7 +19,7 @@ export function useFileSystemExplorer(
   useFsController,
   t
 ) {
-  const defaultAppsStore = useDesktopDefaultAppsStore()
+  const desktopDefaultAppsStore = useDesktopDefaultAppsStore()
 
   const basePath = ref(owdWindow.meta.path)
   const selectedFiles = ref<string[]>([])
@@ -94,14 +95,19 @@ export function useFileSystemExplorer(
 
   async function openFile(fileName: string) {
     const appRequired = getAppByFilename(fileName)
+    const applicationManager = useApplicationManager()
 
     if (appRequired) {
-      const defaultApp = defaultAppsStore.getDefaultApp(appRequired)
+      const defaultApp = desktopDefaultAppsStore.getDefaultApp(appRequired)
+
 
       if (defaultApp) {
         const path = shellEscape(`${basePath.value}/${fileName}`)
-        defaultApp.application.execCommand(
-          `${defaultApp.command} '${path}' --autoplay`,
+
+        applicationManager.launchAppEntry(
+          defaultApp.applicationId,
+          defaultApp.entry,
+          `'${path}' --autoplay`
         )
       }
     }

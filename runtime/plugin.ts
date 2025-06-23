@@ -20,14 +20,19 @@ export default defineNuxtPlugin({
     // it's just a test, should be improved todo
     for await (const [mountPoint, value] of Object.entries(mounts)) {
       if (typeof value === 'string') {
+
         if (value.endsWith('.zip')) {
+
           const res = await fetch(value)
           preparedMounts[mountPoint] = {
             backend: Zip,
             data: await res.arrayBuffer(),
           }
+
         } else if (backendMap[value]) {
+
           preparedMounts[mountPoint] = backendMap[value]
+
         } else {
           console.warn(`Unknown FS backend: ${value}`)
         }
@@ -35,8 +40,6 @@ export default defineNuxtPlugin({
         console.warn(`Unsupported mount config at ${mountPoint}`)
       }
     }
-
-    console.log(preparedMounts)
 
     await configure({
       mounts: preparedMounts,
