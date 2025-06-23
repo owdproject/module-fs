@@ -1,4 +1,5 @@
 import { defineNuxtModule, addPlugin, createResolver, addComponentsDir } from '@nuxt/kit'
+import { deepMerge } from '@owdproject/core/runtime/utils/utilCommon'
 
 export default defineNuxtModule({
   meta: {
@@ -6,10 +7,7 @@ export default defineNuxtModule({
     configKey: 'fs',
   },
   defaults: {
-    mounts: {
-      '/home': 'WebStorage',
-      '/tmp': 'InMemory',
-    },
+    mounts: {},
     fileAssociations: {
       mp4: 'video-player',
       webm: 'video-player',
@@ -24,7 +22,13 @@ export default defineNuxtModule({
   setup(_options, _nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
-    _nuxt.options.runtimeConfig.public.fs = _options
+    _nuxt.options.runtimeConfig.public.desktop.fs = deepMerge({
+      mounts: {
+        '/home': 'WebStorage',
+        '/.cache': 'InMemory',
+        '/.trash': 'InMemory',
+      }
+    }, _options)
 
     addComponentsDir({
       path: resolve('./runtime/components'),
