@@ -12,8 +12,8 @@ This module enables a filesystem allowing [ZenFS](https://github.com/zen-fs/core
 
 ## Features
 
-- Implement a Node.js-like filesystem using `ZenFS`
-- Allow different mounts like temp folders and zip files
+- Implements a Node.js-like filesystem using `ZenFS`
+- Allows different mounts like temp folders and zip files
 
 ## Installation
 
