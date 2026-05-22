@@ -14,16 +14,20 @@ This module enables a filesystem allowing [ZenFS](https://github.com/zen-fs/core
 
 - Implements a Node.js-like filesystem using `ZenFS`
 - Allows different mounts like temp folders and zip files
+- External file import via `utilExternalFileImport` (OS drop → ZenFS write)
+- Internal path moves via `movePathsToDirectory` (used by kit-fs drag-and-drop)
 
 ## Installation
 
 ```bash
-owd install-module @owdproject/module-fs
+pnpm desktop add @owdproject/module-fs
 ```
+
+With in-app documentation, install **`@owdproject/module-docs` before** this module in `desktop.config.ts` so FS docs pages are registered (`/docs/modules/filesystem/...`).
 
 ## Configuration
 
-You could set this configuration in `/desktop/owd.config.ts`:
+You could set this configuration in `/desktop/desktop.config.ts`:
 
 ```js
 fs: {
@@ -35,7 +39,20 @@ fs: {
 },
 ```
 
-If you are mounting zips, place them in your `/desktop/public` folder.
+If you are mounting zips, place them in your `/desktop/public` folder (served as `/filename.zip` from the app root, or under `app.baseURL` if you use a subpath). The module fetches the file on the client and rejects non-zip responses (e.g. HTML 404) before mounting.
+
+If you see **“could not locate End of Central Directory signature”**, the downloaded bytes are not a valid ZIP (wrong URL, 404 page, empty file, or corrupt archive).
+
+## Explorer drag and drop
+
+When paired with `@owdproject/kit-fs`:
+
+| Utility / API | Role |
+|---------------|------|
+| `runtime/utils/utilExternalFileImport.ts` | Parse `DataTransfer` (files, folders, image URLs) and write into ZenFS |
+| `runtime/utils/utilExplorerMove.ts` | Path guards for internal moves (`isInvalidMoveTarget`) |
+| `useFileSystemExplorer.importExternalFiles(entries, targetDir?)` | Import into current or target directory |
+| `useFileSystemExplorer.movePathsToDirectory(paths, targetDir)` | Move VFS entries (internal drag) |
 
 ## License
 
