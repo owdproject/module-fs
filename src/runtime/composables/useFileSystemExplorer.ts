@@ -17,7 +17,7 @@ import { useFileSystemClipboard } from '@owdproject/module-fs/runtime/composable
 import { useFileSystemDirectoryNavigation } from '@owdproject/module-fs/runtime/composables/useFileSystemDirectoryNavigation'
 import { useFileSystemKeyboardActions } from '@owdproject/module-fs/runtime/composables/useFileSystemKeyboardActions'
 
-import { useOwdDialogs } from '@owdproject/core/runtime/composables/useOwdDialogs'
+import { useDesktopDialogs } from '@owdproject/kit-theme/runtime/composables/useDesktopDialogs'
 import { useFsRecentFiles } from '@owdproject/module-fs/runtime/composables/useFsRecentFiles'
 
 const TRASH_PATH = '/tmp'
@@ -53,7 +53,7 @@ export function useFileSystemExplorer(
   })
   const fsDirectoryNavigation = useFileSystemDirectoryNavigation(basePath.value)
 
-  const dialogs = useOwdDialogs()
+  const dialogs = useDesktopDialogs()
 
   // update window meta path when basePath change
   // due to folderUp or folder navigation

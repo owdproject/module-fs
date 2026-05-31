@@ -1,5 +1,5 @@
 import { defineNuxtModule, addPlugin, createResolver } from '@nuxt/kit'
-import { deepMerge } from '@owdproject/core/runtime/utils/utilCommon'
+import { defu } from 'defu'
 
 export default defineNuxtModule({
   meta: {
@@ -11,7 +11,11 @@ export default defineNuxtModule({
     recentFiles: {
       relativePath: '.local/share/recently-used.json',
     },
-    mounts: {},
+    mounts: {
+      '/home': 'WebStorage',
+      '/.cache': 'InMemory',
+      '/.trash': 'InMemory',
+    },
     folders: {
       common: [
         '/Desktop',
@@ -40,29 +44,10 @@ export default defineNuxtModule({
 
     _nuxt.options.runtimeConfig.public ??= {}
     _nuxt.options.runtimeConfig.public.desktop ??= {}
-    _nuxt.options.runtimeConfig.public.desktop.fs = deepMerge({
-      defaultUserHome: '/home/Guest',
-      recentFiles: {
-        relativePath: '.local/share/recently-used.json',
-      },
-      mounts: {
-        '/home': 'WebStorage',
-        '/.cache': 'InMemory',
-        '/.trash': 'InMemory',
-      },
-      folders: {
-        common: [
-          '/Desktop',
-          '/Documents',
-          '/Downloads',
-          '/Music',
-          '/Pictures',
-          '/Videos',
-        ],
-        extra: [],
-        override: [],
-      },
-    }, _options)
+    _nuxt.options.runtimeConfig.public.desktop.fs = defu(
+      _nuxt.options.runtimeConfig.public.desktop.fs ?? {},
+      _options,
+    )
 
     const docsInstalled = (_nuxt.options.modules ?? []).some((m) => {
       const id = String(m)
