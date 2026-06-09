@@ -1,7 +1,21 @@
-import { defineNuxtModule, addPlugin, createResolver } from '@nuxt/kit'
-import { defu } from 'defu'
+import { addImportsDir, addPlugin, createResolver } from '@nuxt/kit'
+import { defineDesktopModule } from '@owdproject/core'
+import type { UserConfig } from 'vite'
 
-export default defineNuxtModule({
+const FS_OPTIMIZE_DEPS = [
+  '@zenfs/core',
+  '@zenfs/dom',
+  '@zenfs/archives',
+] as const
+
+function mergeOptimizeDepsInclude(opt?: { include?: string[] }) {
+  return {
+    ...opt,
+    include: [...new Set([...(opt?.include ?? []), ...FS_OPTIMIZE_DEPS])],
+  }
+}
+
+export default defineDesktopModule({
   meta: {
     name: 'owd-module-fs',
     configKey: 'fs',
@@ -37,17 +51,17 @@ export default defineNuxtModule({
       webp: 'image-viewer',
       jpg: 'image-viewer',
       png: 'image-viewer',
-    }
+    },
   },
   async setup(_options, _nuxt) {
     const { resolve } = createResolver(import.meta.url)
 
-    _nuxt.options.runtimeConfig.public ??= {}
-    _nuxt.options.runtimeConfig.public.desktop ??= {}
-    _nuxt.options.runtimeConfig.public.desktop.fs = defu(
-      _nuxt.options.runtimeConfig.public.desktop.fs ?? {},
-      _options,
-    )
+    // ZenFS pulls CJS transitive deps (e.g. via utilium); viteEnvironmentApi
+    // externalizes them separately and breaks default-export interop in dev.
+    _nuxt.options.experimental = {
+      ..._nuxt.options.experimental,
+      viteEnvironmentApi: false,
+    }
 
     const docsInstalled = (_nuxt.options.modules ?? []).some((m) => {
       const id = String(m)
@@ -56,7 +70,9 @@ export default defineNuxtModule({
 
     if (docsInstalled) {
       try {
-        const { registerOwdDocsSource } = await import('@owdproject/module-docs/register')
+        const { registerOwdDocsSource } = await import(
+          '@owdproject/module-docs/register'
+        )
         registerOwdDocsSource(_nuxt, {
           id: 'module-fs',
           cwd: resolve('./content'),
@@ -68,9 +84,16 @@ export default defineNuxtModule({
       }
     }
 
+    addImportsDir(resolve('./runtime/composables'))
+    addImportsDir(resolve('./runtime/stores'))
+
     addPlugin({
       src: resolve('./runtime/plugin'),
       mode: 'client',
+    })
+
+    _nuxt.hook('vite:extendConfig', (config: UserConfig) => {
+      config.optimizeDeps = mergeOptimizeDepsInclude(config.optimizeDeps)
     })
   },
 })

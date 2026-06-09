@@ -5,7 +5,7 @@ type ClipboardOperation = 'copy' | 'cut'
 const clipboardFiles = ref<string[]>([])
 const clipboardType = ref<ClipboardOperation | null>(null)
 
-export function useFileSystemClipboard() {
+export function useFsClipboard() {
   function setClipboard(paths: string[], type: ClipboardOperation) {
     clipboardFiles.value = paths
     clipboardType.value = type

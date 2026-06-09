@@ -1,5 +1,5 @@
 import { fs } from '@zenfs/core'
-import { explorerEntryAbsolutePath } from '@owdproject/core/runtime/utils/explorerEntryPath'
+import { explorerEntryAbsolutePath } from './utilExplorerEntryPath'
 
 export type ExternalFileEntry = {
   file: File

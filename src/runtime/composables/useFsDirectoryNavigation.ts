@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 
-export function useFileSystemDirectoryNavigation(initialPath: string) {
+export function useFsDirectoryNavigation(initialPath: string) {
   const history = ref<string[]>([initialPath])
   const currentIndex = ref(0)
 

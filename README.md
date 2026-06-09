@@ -45,14 +45,16 @@ If you see **“could not locate End of Central Directory signature”**, the do
 
 ## Explorer drag and drop
 
+Headless composables: **`useFs*`** (clipboard, directory navigation, keyboard, recent files), **`useExplorer*`** (tabs, DnD, drop zones), **`useExplorerWindow`** (facade per finestra explorer).
+
 When paired with `@owdproject/kit-fs`:
 
 | Utility / API | Role |
 |---------------|------|
 | `runtime/utils/utilExternalFileImport.ts` | Parse `DataTransfer` (files, folders, image URLs) and write into ZenFS |
 | `runtime/utils/utilExplorerMove.ts` | Path guards for internal moves (`isInvalidMoveTarget`) |
-| `useFileSystemExplorer.importExternalFiles(entries, targetDir?)` | Import into current or target directory |
-| `useFileSystemExplorer.movePathsToDirectory(paths, targetDir)` | Move VFS entries (internal drag) |
+| `useExplorerWindow.importExternalFiles(entries, targetDir?)` | Import into current or target directory |
+| `useExplorerWindow.movePathsToDirectory(paths, targetDir)` | Move VFS entries (internal drag) |
 
 ## License
 

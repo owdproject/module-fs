@@ -3,31 +3,37 @@ import { fs } from '@zenfs/core'
 import type { IWindowController } from '@owdproject/core'
 
 import { useApplicationManager } from '@owdproject/core/runtime/composables/useApplicationManager'
+import { useDesktopDialogs } from '@owdproject/core/runtime/composables/useDesktopDialogs'
 import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
-import { explorerEntryAbsolutePath } from '@owdproject/core/runtime/utils/explorerEntryPath'
 import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
 
-import { getAppByFilename } from '@owdproject/module-fs/runtime/utils/utilFileSystem'
+import createExplorerFsOperations from './useExplorerFsOperations'
+import { useFsClipboard } from './useFsClipboard'
+import { useFsDirectoryNavigation } from './useFsDirectoryNavigation'
+import { useFsKeyboardActions } from './useFsKeyboardActions'
+import { useFsRecentFiles } from './useFsRecentFiles'
+import { explorerEntryAbsolutePath } from '../utils/utilExplorerEntryPath'
+import { isInvalidMoveTarget } from '../utils/utilExplorerMove'
 import {
   importExternalFilesToDirectory,
   type ExternalFileEntry,
-} from '@owdproject/module-fs/runtime/utils/utilExternalFileImport'
-import { isInvalidMoveTarget } from '@owdproject/module-fs/runtime/utils/utilExplorerMove'
-import { useFileSystemClipboard } from '@owdproject/module-fs/runtime/composables/useFileSystemClipboard'
-import { useFileSystemDirectoryNavigation } from '@owdproject/module-fs/runtime/composables/useFileSystemDirectoryNavigation'
-import { useFileSystemKeyboardActions } from '@owdproject/module-fs/runtime/composables/useFileSystemKeyboardActions'
-
-import { useDesktopDialogs } from '@owdproject/kit-theme/runtime/composables/useDesktopDialogs'
-import { useFsRecentFiles } from '@owdproject/module-fs/runtime/composables/useFsRecentFiles'
+} from '../utils/utilExternalFileImport'
+import { getAppByFilename } from '../utils/utilFileSystem'
+import { filterVisibleEntries } from '../utils/utilExplorerVisibleEntries'
+import { useExplorerStore } from '../stores/storeExplorer'
 
 const TRASH_PATH = '/tmp'
 
-export function useFileSystemExplorer(
+export function useExplorerWindow(
   owdWindow: IWindowController,
-  useFsController: (fsExplorer: any, t: (key: string, values?: Record<string, unknown>) => string) => any,
   t: (key: string, values?: Record<string, unknown>) => string,
+  useFsController: (
+    fsExplorer: any,
+    translate: (key: string, values?: Record<string, unknown>) => string,
+  ) => any = createExplorerFsOperations,
 ) {
   const desktopDefaultAppsStore = useDesktopDefaultAppsStore()
+  const explorerStore = useExplorerStore()
   const { recordRecentFile } = useFsRecentFiles()
 
   const basePath = ref(owdWindow.meta.path ?? '/')
@@ -36,8 +42,8 @@ export function useFileSystemExplorer(
 
   const fsEntries = ref<string[]>([])
 
-  const fsClipboard = useFileSystemClipboard()
-  useFileSystemKeyboardActions(owdWindow, {
+  const fsClipboard = useFsClipboard()
+  useFsKeyboardActions(owdWindow, {
     onDelete: async (toTrash) => {
       fsExplorer.fsController?.deleteSelectedFiles(toTrash)
     },
@@ -51,7 +57,7 @@ export function useFileSystemExplorer(
       fsExplorer.fsController?.pasteClipboardFiles()
     },
   })
-  const fsDirectoryNavigation = useFileSystemDirectoryNavigation(basePath.value)
+  const fsDirectoryNavigation = useFsDirectoryNavigation(basePath.value)
 
   const dialogs = useDesktopDialogs()
 
@@ -59,6 +65,13 @@ export function useFileSystemExplorer(
   // due to folderUp or folder navigation
   watch(() => basePath.value,() => {
       owdWindow.meta.path = basePath.value
+    },
+  )
+
+  watch(
+    () => explorerStore.showHiddenFiles,
+    () => {
+      void refreshDirectory()
     },
   )
 
@@ -72,7 +85,10 @@ export function useFileSystemExplorer(
       return
     }
     try {
-      fsEntries.value = fs.readdirSync(path)
+      fsEntries.value = filterVisibleEntries(
+        fs.readdirSync(path),
+        explorerStore.showHiddenFiles,
+      )
     } catch (e) {
       console.error(e)
       fsEntries.value = []
