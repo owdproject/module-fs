@@ -10,7 +10,7 @@ const backendMap = {
 }
 
 export default defineNuxtPlugin({
-  name: 'owd-plugin-fs',
+  name: 'desktop-plugin-fs',
   async setup(nuxtApp) {
     const desktopConfig = nuxtApp.$config.public.desktop
     const config = desktopConfig.fs

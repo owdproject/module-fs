@@ -6,7 +6,7 @@ Documento di mappatura per separare **VFS / integrazione** da **UI tema** e per 
 
 | Pezzo | Ruolo |
 |--------|--------|
-| `module.ts` | Modulo Nuxt `owd-module-fs`: merge `runtimeConfig.public.desktop.fs` (mounts di default, `fileAssociations`), registra componenti + plugin client. |
+| `module.ts` | Modulo Nuxt `desktop-module-fs`: merge `runtimeConfig.public.desktop.fs` (mounts di default, `fileAssociations`), registra componenti + plugin client. |
 | `runtime/plugin.ts` | Inizializza **ZenFS** (`configure` da `@zenfs/core` + backend `InMemory` / `WebStorage` / `IndexedDB` + `Zip` per archivi). I mount vengono da `public.desktop.fs.mounts`. |
 | `@zenfs/core` | API `fs` (sync + `fs.promises`) usata dai composable. |
 

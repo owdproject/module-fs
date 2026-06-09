@@ -1,5 +1,5 @@
 import { addImportsDir, addPlugin, createResolver } from '@nuxt/kit'
-import { defineDesktopModule } from '@owdproject/core'
+import { defineDesktopModule } from '@owdproject/core/kit/authoring'
 import type { UserConfig } from 'vite'
 
 const FS_OPTIMIZE_DEPS = [
@@ -17,7 +17,7 @@ function mergeOptimizeDepsInclude(opt?: { include?: string[] }) {
 
 export default defineDesktopModule({
   meta: {
-    name: 'owd-module-fs',
+    name: 'desktop-module-fs',
     configKey: 'fs',
   },
   defaults: {
