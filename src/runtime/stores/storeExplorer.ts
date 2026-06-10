@@ -9,7 +9,7 @@ export type ExplorerQuickAccessPin = {
 }
 
 export const useExplorerStore = defineStore(
-  'owd/module-fs/explorer',
+  'desktop/module-fs/explorer',
   () => {
     const navExpandedKeys = ref<string[]>(['quickAccess', 'thisPc'])
     const quickAccessPins = ref<ExplorerQuickAccessPin[]>([])
