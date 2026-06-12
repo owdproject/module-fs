@@ -13,6 +13,7 @@ import { useFsDirectoryNavigation } from './useFsDirectoryNavigation'
 import { useFsKeyboardActions } from './useFsKeyboardActions'
 import { useFsRecentFiles } from './useFsRecentFiles'
 import { explorerEntryAbsolutePath } from '../utils/utilExplorerEntryPath'
+import { formatExplorerDisplayPath } from '../utils/utilExplorerDisplayPath'
 import { isInvalidMoveTarget } from '../utils/utilExplorerMove'
 import {
   importExternalFilesToDirectory,
@@ -61,11 +62,22 @@ export function useExplorerWindow(
 
   const dialogs = useDesktopDialogs()
 
-  // update window meta path when basePath change
-  // due to folderUp or folder navigation
-  watch(() => basePath.value,() => {
-      owdWindow.meta.path = basePath.value
+  function syncWindowPathTitle(path: string) {
+    owdWindow.meta.path = path
+    owdWindow.actions.setTitleOverride(
+      t('apps.explorer.titleExploring', {
+        path: formatExplorerDisplayPath(path),
+      }),
+    )
+  }
+
+  watch(
+    () => basePath.value,
+    (path) => {
+      syncWindowPathTitle(path)
+      selectedFiles.value = []
     },
+    { immediate: true },
   )
 
   watch(
