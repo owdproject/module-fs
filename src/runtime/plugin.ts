@@ -2,6 +2,8 @@ import { defineNuxtPlugin, useNuxtApp } from 'nuxt/app'
 import { configure, InMemory, fs } from '@zenfs/core'
 import { IndexedDB, WebStorage } from '@zenfs/dom'
 import { Zip } from '@zenfs/archives'
+import { watch } from 'vue'
+import { useDesktopShellIdentity } from '@owdproject/core/runtime/composables/useDesktopShellIdentity'
 
 const backendMap = {
   InMemory,
@@ -137,34 +139,67 @@ export default defineNuxtPlugin({
         .filter((path): path is string => Boolean(path))
     }
 
-    const commonFolders = collectFolderPaths(fsFolders.common)
-    const extraFolders = collectFolderPaths(fsFolders.extra)
-    const overrideFolders = collectFolderPaths(fsFolders.override)
+    const { userHome } = useDesktopShellIdentity()
 
-    const themeSpecialFolders = collectFolderPaths(explorerFolders.specialFolders, 'path')
-    const themeSpecialExtraFolders = collectFolderPaths(explorerFolders.specialFoldersExtra, 'path')
-    const themeSpecialOverrideFolders = collectFolderPaths(explorerFolders.specialFoldersOverride, 'path')
+    const resolveFolderPathsForHome = (paths: string[], home: string): string[] => {
+      return paths.map((p) => {
+        if (p.startsWith(home)) {
+          return p
+        }
+        if (p.startsWith('/home/')) {
+          return p
+        }
+        const relative = p.replace(/^~/, '').replace(/^\//, '')
+        return home.endsWith('/') ? `${home}${relative}` : `${home}/${relative}`
+      })
+    }
 
-    const mergedFolders = overrideFolders.length > 0
-      ? overrideFolders
-      : [
-          ...commonFolders,
-          ...extraFolders,
-        ]
+    const createFoldersForHome = async (home: string) => {
+      const commonFolders = resolveFolderPathsForHome(collectFolderPaths(fsFolders.common), home)
+      const extraFolders = resolveFolderPathsForHome(collectFolderPaths(fsFolders.extra), home)
+      const overrideFolders = resolveFolderPathsForHome(collectFolderPaths(fsFolders.override), home)
 
-    const mergedSpecialFolders = themeSpecialOverrideFolders.length > 0
-      ? themeSpecialOverrideFolders
-      : [
-          ...themeSpecialFolders,
-          ...themeSpecialExtraFolders,
-        ]
+      const themeSpecialFolders = resolveFolderPathsForHome(collectFolderPaths(explorerFolders.specialFolders, 'path'), home)
+      const themeSpecialExtraFolders = resolveFolderPathsForHome(collectFolderPaths(explorerFolders.specialFoldersExtra, 'path'), home)
+      const themeSpecialOverrideFolders = resolveFolderPathsForHome(collectFolderPaths(explorerFolders.specialFoldersOverride, 'path'), home)
 
-    for (const folderPath of new Set([...mergedFolders, ...mergedSpecialFolders])) {
+      const mergedFolders = overrideFolders.length > 0
+        ? overrideFolders
+        : [
+            ...commonFolders,
+            ...extraFolders,
+          ]
+
+      const mergedSpecialFolders = themeSpecialOverrideFolders.length > 0
+        ? themeSpecialOverrideFolders
+        : [
+            ...themeSpecialFolders,
+            ...themeSpecialExtraFolders,
+          ]
+
       try {
-        await fs.promises.mkdir(folderPath, { recursive: true })
+        await fs.promises.mkdir(home, { recursive: true })
       } catch (err) {
-        console.warn(`Could not prepare folder: ${folderPath}`, err)
+        console.warn(`Could not prepare home folder: ${home}`, err)
+      }
+
+      for (const folderPath of new Set([...mergedFolders, ...mergedSpecialFolders])) {
+        try {
+          await fs.promises.mkdir(folderPath, { recursive: true })
+        } catch (err) {
+          console.warn(`Could not prepare folder: ${folderPath}`, err)
+        }
       }
     }
+
+    // Prepare initial folders
+    await createFoldersForHome(userHome.value)
+
+    // Watch for future userHome updates (e.g. login)
+    watch(userHome, async (newHome) => {
+      if (newHome) {
+        await createFoldersForHome(newHome)
+      }
+    })
   },
 })

@@ -6,6 +6,7 @@ import { useApplicationManager } from '@owdproject/core/runtime/composables/useA
 import { useDesktopDialogs } from '@owdproject/core/runtime/composables/useDesktopDialogs'
 import { useDesktopDefaultAppsStore } from '@owdproject/core/runtime/stores/storeDesktopDefaultApps'
 import { shellEscape } from '@owdproject/core/runtime/utils/utilTerminal'
+import { useDesktopShellIdentity } from '@owdproject/core/runtime/composables/useDesktopShellIdentity'
 
 import createExplorerFsOperations from './useExplorerFsOperations'
 import { useFsClipboard } from './useFsClipboard'
@@ -37,7 +38,13 @@ export function useExplorerWindow(
   const explorerStore = useExplorerStore()
   const { recordRecentFile } = useFsRecentFiles()
 
-  const basePath = ref(owdWindow.meta.path ?? '/')
+  const { userHome } = useDesktopShellIdentity()
+
+  const initialPath = (owdWindow.meta.path && owdWindow.meta.path !== '/')
+    ? owdWindow.meta.path
+    : userHome.value
+
+  const basePath = ref(initialPath)
   const selectedFiles = ref<string[]>([])
   const layout = ref<string>('')
 
@@ -64,7 +71,7 @@ export function useExplorerWindow(
 
   function syncWindowPathTitle(path: string) {
     owdWindow.meta.path = path
-    owdWindow.actions.setTitleOverride(
+    owdWindow.actions.setWindowTitleOverride(
       t('apps.explorer.titleExploring', {
         path: formatExplorerDisplayPath(path),
       }),
