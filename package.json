@@ -23,7 +23,8 @@
     "./runtime/*": {
       "types": "./src/runtime/*",
       "import": "./src/runtime/*"
-    }
+    },
+    "./dist/*": "./dist/*"
   },
   "main": "./dist/module.mjs",
   "typesVersions": {
