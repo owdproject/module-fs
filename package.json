@@ -37,9 +37,6 @@
   "files": [
     "dist"
   ],
-  "nx": {
-    "name": "module-fs"
-  },
   "scripts": {
     "prepack": "nuxt-module-build build",
     "dev": "pnpm run dev:prepare && cd playground && pnpm exec nuxt dev",
